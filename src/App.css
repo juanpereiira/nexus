@@ -1,0 +1,23 @@
+body {
+  background-color: #1a1a1a;
+  color: white;
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+
+.app-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
+
+.visualization-pane {
+  flex-grow: 1;
+  padding: 1rem;
+  border-right: 1px solid #444;
+}
+
+.control-panel {
+  width: 350px;
+  padding: 1rem;
+}
