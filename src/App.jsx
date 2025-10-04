@@ -1,13 +1,14 @@
 import './App.css';
 import ControlPanel from './components/ControlPanel';
+import OrbitalView from './components/OrbitalView';
 
 function App() {
   return (
     <div className="app-container">
       <div className="visualization-pane">
-        <h2>Visualization Pane</h2>
+        <OrbitalView />
       </div>
-      <ControlPanel /> {/* <-- USE THE COMPONENT HERE */}
+      <ControlPanel />
     </div>
   );
 }

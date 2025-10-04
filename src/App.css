@@ -13,8 +13,7 @@ body {
 
 .visualization-pane {
   flex-grow: 1;
-  padding: 1rem;
-  border-right: 1px solid #444;
+  height: 100%;
 }
 
 .control-panel {
