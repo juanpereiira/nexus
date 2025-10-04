@@ -1,35 +1,27 @@
-// src/components/ControlPanel.jsx
 import { useState } from 'react';
 import './ControlPanel.css';
 
-function ControlPanel() {
+function ControlPanel({ onSpawn }) {
   const [asteroidType, setAsteroidType] = useState('Stony');
-  const [diameter, setDiameter] = useState(100);
+  const [diameter, setDiameter] = useState(4.1);
   const [velocityChange, setVelocityChange] = useState(20);
 
-  // STEP 1: Create a handler function
-  const handleLaunch = () => {
-    // STEP 2: Log the current state to the console
-    console.log("Launch parameters captured!");
-    console.log({
-      asteroidType: asteroidType,
-      diameter: diameter,
-      velocityChange: velocityChange,
-    });
-    // Later, you'll send this data to the backend instead of logging it.
+  const handleSpawnClick = () => {
+    if (onSpawn) {
+      onSpawn({ diameter, velocityChange });
+    }
   };
 
   return (
     <div className="control-panel-container">
       <h2>Mission Control</h2>
-
-      {/* --- UI CHANGES --- */}
-      {/* ADDED: Dropdown for Asteroid Type */}
+      
+      {/* Asteroid Type Dropdown */}
       <div className="control-group">
         <label htmlFor="asteroid-type">Asteroid Type</label>
         <select
           id="asteroid-type"
-          className="dropdown-select" // Added a class for styling
+          className="dropdown-select"
           value={asteroidType}
           onChange={(e) => setAsteroidType(e.target.value)}
         >
@@ -39,34 +31,36 @@ function ControlPanel() {
         </select>
       </div>
 
-      {/* ADDED: Slider for Diameter */}
+      {/* Diameter Slider */}
       <div className="control-group">
         <label htmlFor="diameter">Diameter: {diameter} km</label>
         <input
           type="range"
-          id="diameter"
-          min="0"
+          min="0.1"
           max="20"
           step="0.1"
+          id="diameter"
           value={diameter}
-          onChange={(e) => setDiameter(e.target.value)}
+          onChange={(e) => setDiameter(parseFloat(e.target.value))}
         />
       </div>
 
+      {/* Velocity Change Slider */}
       <div className="control-group">
-        <label htmlFor="velocity-change">Velocity Change (Δv): {velocityChange} km/s</label>
+        <label htmlFor="velocity-change">Velocity Change: {velocityChange} km/s</label>
         <input
           type="range"
-          id="velocity-change"
           min="1"
           max="40"
           step="1"
+          id="velocity-change"
           value={velocityChange}
-          onChange={(e) => setVelocityChange(e.target.value)}
+          onChange={(e) => setVelocityChange(parseFloat(e.target.value))}
         />
       </div>
 
-      <button className="launch-button" onClick={handleLaunch}>
+      {/* Spawn Button */}
+      <button className="launch-button" onClick={handleSpawnClick}>
         SPAWN METEOR
       </button>
     </div>
