@@ -60,7 +60,7 @@ const OrbitalView = forwardRef((props, ref) => {
       orbitPivotRef.current.add(asteroid);
 
       // Position asteroid on orbit radius
-      asteroid.position.set(asteroidRadius + 10, 0, 0);
+      asteroid.position.set(asteroidRadius + 60, 0, 0);
 
       // Set orbit speed scaled by velocityChange
       orbitSpeedRef.current = Number(velocityChange) / 1000;
@@ -73,7 +73,7 @@ const OrbitalView = forwardRef((props, ref) => {
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(75, currentMount.clientWidth / currentMount.clientHeight, 0.1, 1000);
-    camera.position.z = 30;
+    camera.position.z = 80;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
@@ -85,13 +85,13 @@ const OrbitalView = forwardRef((props, ref) => {
     // Earth
     const textureLoader = new THREE.TextureLoader();
     const earthTexture = textureLoader.load('/earth-8k.jpg');
-    const earthGeometry = new THREE.SphereGeometry(5, 32, 32);
+    const earthGeometry = new THREE.SphereGeometry(32, 32, 32);
     const earthMaterial = new THREE.MeshStandardMaterial({ map: earthTexture });
     const earth = new THREE.Mesh(earthGeometry, earthMaterial);
     scene.add(earth);
 
     // Lighting
-    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1.8);
     directionalLight.position.set(5, 3, 5);
     scene.add(directionalLight);
