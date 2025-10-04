@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 function createAsteroid(radius) {
-  const geometry = new THREE.IcosahedronGeometry(radius, 5);
+  const geometry = new THREE.SphereGeometry(radius, 32, 32);
   const positionAttribute = geometry.getAttribute('position');
 
   for (let i = 0; i < positionAttribute.count; i++) {
@@ -29,15 +29,14 @@ const OrbitalView = forwardRef((props, ref) => {
   const sceneRef = useRef(null);
   const asteroidRef = useRef(null);
   const orbitPivotRef = useRef(null);
-  const orbitSpeedRef = useRef(0.002);
+  const thetaRef = useRef(0);
+  const orbitSpeedRef = useRef(0.01);
 
-  // Expose spawnAsteroid method
   useImperativeHandle(ref, () => ({
     spawnAsteroid({ diameter, velocityChange }) {
       const scene = sceneRef.current;
       if (!scene) return;
 
-      // Remove existing asteroid if any
       if (asteroidRef.current) {
         orbitPivotRef.current.remove(asteroidRef.current);
         asteroidRef.current.geometry.dispose();
@@ -45,21 +44,27 @@ const OrbitalView = forwardRef((props, ref) => {
         asteroidRef.current = null;
       }
 
-      const asteroidRadius = Number(diameter) / 2; // Convert diameter km to radius in scene units
+      const asteroidRadius = Number(diameter) / 2;
       const asteroid = createAsteroid(asteroidRadius);
       asteroidRef.current = asteroid;
+      thetaRef.current = 0;
 
-      // Set initial position
-      asteroid.position.set(10, 0, 0);
-
-      // Add to scene
-      if (scene && orbitPivotRef.current) {
-        orbitPivotRef.current.add(asteroid);
+      // Prepare orbit pivot group if not existing
+      if (!orbitPivotRef.current) {
+        const orbitPivot = new THREE.Group();
+        scene.add(orbitPivot);
+        orbitPivotRef.current = orbitPivot;
       }
 
-      // Adjust orbit speed based on velocityChange
-      orbitSpeedRef.current = Number(velocityChange) / 10000;
-    }
+      // Add asteroid to orbit pivot
+      orbitPivotRef.current.add(asteroid);
+
+      // Position asteroid on orbit radius
+      asteroid.position.set(asteroidRadius + 10, 0, 0);
+
+      // Set orbit speed scaled by velocityChange
+      orbitSpeedRef.current = Number(velocityChange) / 1000;
+    },
   }));
 
   useEffect(() => {
@@ -68,7 +73,7 @@ const OrbitalView = forwardRef((props, ref) => {
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(75, currentMount.clientWidth / currentMount.clientHeight, 0.1, 1000);
-    camera.position.z = 15;
+    camera.position.z = 30;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
@@ -77,53 +82,49 @@ const OrbitalView = forwardRef((props, ref) => {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    // Earth + Lights
+    // Earth
     const textureLoader = new THREE.TextureLoader();
     const earthTexture = textureLoader.load('/earth-8k.jpg');
-    const geometry = new THREE.SphereGeometry(5, 32, 32);
-    const material = new THREE.MeshStandardMaterial({ map: earthTexture });
-    const earth = new THREE.Mesh(geometry, material);
+    const earthGeometry = new THREE.SphereGeometry(5, 32, 32);
+    const earthMaterial = new THREE.MeshStandardMaterial({ map: earthTexture });
+    const earth = new THREE.Mesh(earthGeometry, earthMaterial);
     scene.add(earth);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-    scene.add(ambientLight);
+    // Lighting
+    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1.8);
     directionalLight.position.set(5, 3, 5);
     scene.add(directionalLight);
 
-    // Create orbit pivot
-    const orbitPivot = new THREE.Group();
-    scene.add(orbitPivot);
-    orbitPivotRef.current = orbitPivot;
-
-    // Animate
     const animate = () => {
       requestAnimationFrame(animate);
       controls.update();
-      scene.children.forEach(obj => {
-        if (obj !== scene.children[0]) {
-          if (obj.type === 'Mesh') obj.rotation.x += 0.005;
-        }
-      });
-      if (orbitPivotRef.current) orbitPivotRef.current.rotation.y += orbitSpeedRef.current;
+
+      earth.rotation.y += 0.0005;
+
+      if (asteroidRef.current) {
+        thetaRef.current += orbitSpeedRef.current;
+        const orbitRadius = asteroidRef.current.position.length();
+        asteroidRef.current.position.x = orbitRadius * Math.cos(thetaRef.current);
+        asteroidRef.current.position.z = orbitRadius * Math.sin(thetaRef.current);
+        asteroidRef.current.rotation.x += 0.005;
+        asteroidRef.current.rotation.y += 0.005;
+      }
+
       renderer.render(scene, camera);
     };
     animate();
 
-    // Resize handler
     const handleResize = () => {
-      if (currentMount) {
-        camera.aspect = currentMount.clientWidth / currentMount.clientHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
-      }
+      camera.aspect = currentMount.clientWidth / currentMount.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
     };
     window.addEventListener('resize', handleResize);
 
-    // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
-      if (currentMount) currentMount.removeChild(renderer.domElement);
+      currentMount.removeChild(renderer.domElement);
     };
   }, []);
 
