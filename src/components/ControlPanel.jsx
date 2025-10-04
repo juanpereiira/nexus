@@ -51,7 +51,7 @@ function ControlPanel({ onSpawn }) {
         <input
           type="range"
           min="1"
-          max="40"
+          max="80"
           step="1"
           id="velocity-change"
           value={velocityChange}
