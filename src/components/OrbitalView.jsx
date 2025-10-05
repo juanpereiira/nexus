@@ -128,17 +128,43 @@ const OrbitalView = forwardRef((props, ref) => {
         } else if (!impactStartedRef.current) {
           impactStartedRef.current = true;
           
-          const impactPoint = asteroidRef.current.position.clone();
+          const worldImpactPoint = asteroidRef.current.position.clone();
           
           console.log("IMPACT DETECTED. Triggering effects.");
+          const localImpactPoint = earthRef.current.worldToLocal(worldImpactPoint);
+          createBlastCircles(worldImpactPoint, earth);
+          createCraterOnEarth(earth, worldImpactPoint);
+          createBlastGlow(worldImpactPoint, earth);
           
-          createBlastCircles(impactPoint, earth);
-          createCraterOnEarth(earth, impactPoint);
-          createBlastGlow(impactPoint, earth);
-          
+          const lavaTexture = textureLoader.load('/lava.jpg');
+          const decalGeometry = new THREE.CircleGeometry(2, 32);
+          const decalMaterial = new THREE.MeshBasicMaterial({
+            map: lavaTexture,
+            blending: THREE.AdditiveBlending,
+            transparent: true,
+          });
+          const lavaDecal = new THREE.Mesh(decalGeometry, decalMaterial);
+
+          lavaDecal.position.copy(localImpactPoint).setLength(15.05);
+          lavaDecal.lookAt(new THREE.Vector3(0,0,0));
+          earthRef.current.add(lavaDecal);
+
+          let opacity = 1.0;
+          function fadeLava() {
+            if (opacity > 0) {
+              opacity -= 0.01;
+              lavaDecal.material.opacity = opacity;
+              requestAnimationFrame(fadeLava);
+            } else {
+              earthRef.current.remove(lavaDecal);
+              lavaDecal.geometry.dispose();
+              lavaDecal.material.dispose();
+            }
+          }
+          fadeLava();
           setTsunamiData({
             earth,
-            localPosition: impactPoint,
+            localPosition: worldImpactPoint,
             earthTextureURL: '/earth-8k.jpg',
             earthRadius: earthRadius,
           });
