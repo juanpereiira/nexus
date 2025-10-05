@@ -6,15 +6,23 @@ function ControlPanel({ onSpawn }) {
   const [velocity, setVelocity] = useState(5);
   const [asteroidType, setAsteroidType] = useState('Stony');
 
-  const handleLaunch = () => {
-    const simulationData = {
-      asteroidType,
-      diameter: Number(diameter),
-      velocity: Number(velocity),
-    };
-    onSpawn(simulationData);
-  };
+ const handleLaunch = () => {
+    // We are now faking the backend call for the demo
+    console.log("Faking backend call for live demo...");
 
+    // This is an example of what your backend might return
+    const fakeBackendResult = {
+      impact_effects: {
+        crater_diameter_m_approx: 4000, // This will create a 4km crater
+      },
+      input_params: {
+        diameter_m: 2000, // Corresponds to a 2km asteroid
+        velocity_m_s: 15000,
+        asteroidType: asteroidType,
+      }
+    };
+    onSpawn(fakeBackendResult);
+  };
   return (
     <div className="control-panel-container">
       <h2>Asteroid Details</h2>
