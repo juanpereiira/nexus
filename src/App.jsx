@@ -1,23 +1,27 @@
+import { useRef, useState } from 'react';
 import './App.css';
-import { useRef } from 'react';
 import ControlPanel from './components/ControlPanel';
 import OrbitalView from './components/OrbitalView';
 
 function App() {
-  const orbitalViewRef = useRef();
+  const globeRef = useRef(null);
+  const [timeScale, setTimeScale] = useState(1);
 
-  function handleSpawn(simulationData) {
-    if (orbitalViewRef.current) {
-      orbitalViewRef.current.spawnAsteroid(simulationData);
+  const handleSpawnMeteor = (simulationData) => {
+    if (globeRef.current) {
+      globeRef.current.spawnAsteroid(simulationData);
     }
-  }
+  };
 
   return (
     <div className="app-container">
       <div className="visualization-pane">
-        <OrbitalView ref={orbitalViewRef} />
+        <OrbitalView ref={globeRef} timeScale={timeScale} />
       </div>
-      <ControlPanel onSpawn={handleSpawn} />
+      <ControlPanel 
+        onSpawn={handleSpawnMeteor} 
+        onTimeScaleChange={setTimeScale} 
+      />
     </div>
   );
 }
