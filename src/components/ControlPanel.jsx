@@ -2,13 +2,11 @@ import { useState } from 'react';
 import './ControlPanel.css';
 
 function ControlPanel({ onSpawn }) {
-  const [asteroidType, setAsteroidType] = useState('Stony');
   const [diameter, setDiameter] = useState(4.1);
   const [velocity, setVelocity] = useState(5);
 
   const handleLaunch = () => {
     const simulationData = {
-      asteroidType,
       diameter: Number(diameter),
       velocity: Number(velocity),
     };
@@ -18,14 +16,7 @@ function ControlPanel({ onSpawn }) {
   return (
     <div className="control-panel-container">
       <h2>Mission Control</h2>
-      <div className="control-group">
-        <label htmlFor="asteroid-type">Asteroid Type</label>
-        <select id="asteroid-type" className="dropdown-select" value={asteroidType} onChange={(e) => setAsteroidType(e.target.value)}>
-          <option value="Stony">Stony (e.g., S-type)</option>
-          <option value="Iron">Iron (e.g., M-type)</option>
-          <option value="Carbonaceous">Carbonaceous (e.g., C-type)</option>
-        </select>
-      </div>
+      
       <div className="control-group">
         <label htmlFor="diameter">Diameter: {Number(diameter).toFixed(1)} km</label>
         <input type="range" id="diameter" min="0.1" max="10" step="0.1" value={diameter} onChange={(e) => setDiameter(e.target.value)} />

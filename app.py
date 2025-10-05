@@ -84,7 +84,7 @@ def asteroids():
 def simulate_impact():
     """Core simulation endpoint. Calculates effects, adjusting for impact angle."""
     data = request.get_json()
-    print("Received from frontend:", data)  # Debug: Show payload in terminal
+    print("Received from frontend:")  # Debug: Show payload in terminal
 
     # --- Input Processing ---
     diameter = data.get('diameter')
