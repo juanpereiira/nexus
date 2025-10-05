@@ -5,8 +5,14 @@ import { createCraterOnEarth } from './CraterEffect';
 import { createBlastCircles, createBlastGlow } from './BlastEffects';
 import WaterHumpsTsunami from './WaterHumpsTsunami';
 
-function createAsteroid(radius) {
-  const geometry = new THREE.SphereGeometry(radius, 32, 32);
+const ASTEROID_COLORS = {
+  'Stony': 0x999999,
+  'Iron': 0x676775,
+  'Carbonaceous': 0x4B3A26,
+};
+
+function createAsteroid(radius, type) {
+  const geometry = new THREE.IcosahedronGeometry(radius, 25);
   const positionAttribute = geometry.getAttribute('position');
   for (let i = 0; i < positionAttribute.count; i++) {
     const vertex = new THREE.Vector3().fromBufferAttribute(positionAttribute, i);
@@ -20,7 +26,10 @@ function createAsteroid(radius) {
     positionAttribute.setXYZ(i, vertex.x, vertex.y, vertex.z);
   }
   geometry.computeVertexNormals();
-  const material = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.8 });
+  const material = new THREE.MeshStandardMaterial({
+    color: ASTEROID_COLORS[type] || 0x999999,
+    roughness: 0.8
+  });
   return new THREE.Mesh(geometry, material);
 }
 
@@ -44,12 +53,13 @@ const OrbitalView = forwardRef((props, ref) => {
   const impactStartedRef = useRef(false);
   const orbitDataRef = useRef({ angle: 0, initialRadius: 25, currentRadius: 25, speed: 0.005 });
   const [tsunamiData, setTsunamiData] = useState(null);
+  const animationFrameIdRef = useRef(null);
+  const orbitRotationRef = useRef(new THREE.Quaternion());
 
   useImperativeHandle(ref, () => ({
-    spawnAsteroid: ({ diameter, velocity }) => {
+    spawnAsteroid: ({ diameter, velocity, asteroidType }) => {
       const scene = sceneRef.current;
       if (!scene) return;
-
       if (asteroidRef.current) scene.remove(asteroidRef.current);
       if (orbitPathRef.current) scene.remove(orbitPathRef.current);
 
@@ -57,10 +67,9 @@ const OrbitalView = forwardRef((props, ref) => {
       setTsunamiData(null);
 
       const asteroidRadius = Number(diameter) / 2;
-      const asteroid = createAsteroid(asteroidRadius);
+      const asteroid = createAsteroid(asteroidRadius, asteroidType);
       asteroidRef.current = asteroid;
-      scene.add(asteroid);
-
+      
       const initialRadius = 25 + Math.random() * 10;
       orbitDataRef.current = {
         angle: 0,
@@ -68,9 +77,22 @@ const OrbitalView = forwardRef((props, ref) => {
         currentRadius: initialRadius,
         speed: (Number(velocity) / 1000)
       };
+      
+      const randomRotation = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(
+          (Math.random() - 0.5) * Math.PI,
+          Math.random() * Math.PI * 2,
+          0,
+          'XYZ'
+        )
+      );
+      orbitRotationRef.current = randomRotation;
 
       const orbitPath = createOrbitPath(initialRadius);
+      orbitPath.quaternion.copy(randomRotation);
       orbitPathRef.current = orbitPath;
+      
+      scene.add(asteroid);
       scene.add(orbitPath);
     }
   }));
@@ -79,36 +101,43 @@ const OrbitalView = forwardRef((props, ref) => {
     const currentMount = mountRef.current;
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-
     const camera = new THREE.PerspectiveCamera(75, currentMount.clientWidth / currentMount.clientHeight, 0.1, 1000);
     camera.position.z = 50;
-
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
     currentMount.appendChild(renderer.domElement);
-
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-
     const textureLoader = new THREE.TextureLoader();
-    scene.background = textureLoader.load('/stars.jpg');
+    const skyboxGeometry = new THREE.SphereGeometry(500, 64, 64); // A very large sphere
+    const skyboxMaterial = new THREE.MeshBasicMaterial({
+      map: textureLoader.load('/stars.jpg'),
+      side: THREE.BackSide, // Render on the inside of the sphere
+      color: 0xFFFFFF     // Tint the texture to make it darker
+    });
+const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+scene.add(skybox);
     const earthTexture = textureLoader.load('/earth-8k.jpg');
     const earthGeometry = new THREE.SphereGeometry(15, 64, 64);
-    const earthMaterial = new THREE.MeshStandardMaterial({ map: earthTexture, roughness: 0.8 });
+    
+    // --- THIS IS THE FIX ---
+    const earthMaterial = new THREE.MeshStandardMaterial({ 
+        map: earthTexture, 
+        roughness: 0.8 
+    });
+    // -----------------------
+
     const earth = new THREE.Mesh(earthGeometry, earthMaterial);
     earthRef.current = earth;
     scene.add(earth);
-
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambientLight);
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
     directionalLight.position.set(20, 10, 15);
     scene.add(directionalLight);
-
-    let animationFrameId = null;
-
+    
     const animate = () => {
-      animationFrameId = requestAnimationFrame(animate);
+      animationFrameIdRef.current = requestAnimationFrame(animate);
       controls.update();
       earth.rotation.y += 0.0005;
 
@@ -116,26 +145,27 @@ const OrbitalView = forwardRef((props, ref) => {
         const orbitData = orbitDataRef.current;
         orbitData.angle += orbitData.speed;
 
-        const x = orbitData.currentRadius * Math.cos(orbitData.angle);
-        const z = orbitData.currentRadius * Math.sin(orbitData.angle);
-        asteroidRef.current.position.set(x, 0, z);
+        const flatPosition = new THREE.Vector3(
+            orbitData.currentRadius * Math.cos(orbitData.angle),
+            0,
+            orbitData.currentRadius * Math.sin(orbitData.angle)
+        );
+        flatPosition.applyQuaternion(orbitRotationRef.current);
+        asteroidRef.current.position.copy(flatPosition);
         asteroidRef.current.rotation.x += 0.01;
 
         const earthRadius = 15;
         if (orbitData.currentRadius > earthRadius) {
-          orbitData.currentRadius -= 0.01 * (orbitData.speed / 0.005); // Decay faster with more speed
+          orbitData.currentRadius -= 0.01 * (orbitData.speed / 0.005);
           orbitPathRef.current.scale.setScalar(orbitData.currentRadius / orbitData.initialRadius);
         } else if (!impactStartedRef.current) {
           impactStartedRef.current = true;
-          
           const worldImpactPoint = asteroidRef.current.position.clone();
-          
-          console.log("IMPACT DETECTED. Triggering effects.");
           const localImpactPoint = earthRef.current.worldToLocal(worldImpactPoint);
-          createBlastCircles(worldImpactPoint, earth);
-          createCraterOnEarth(earth, worldImpactPoint);
-          createBlastGlow(worldImpactPoint, earth);
           
+          createBlastCircles(localImpactPoint, earth);
+          createCraterOnEarth(earth, localImpactPoint);
+          createBlastGlow(localImpactPoint, earth);
           const lavaTexture = textureLoader.load('/lava.jpg');
           const decalGeometry = new THREE.CircleGeometry(2, 32);
           const decalMaterial = new THREE.MeshBasicMaterial({
@@ -144,11 +174,10 @@ const OrbitalView = forwardRef((props, ref) => {
             transparent: true,
           });
           const lavaDecal = new THREE.Mesh(decalGeometry, decalMaterial);
-
           lavaDecal.position.copy(localImpactPoint).setLength(15.05);
           lavaDecal.lookAt(new THREE.Vector3(0,0,0));
           earthRef.current.add(lavaDecal);
-
+          
           let opacity = 1.0;
           function fadeLava() {
             if (opacity > 0) {
@@ -164,7 +193,7 @@ const OrbitalView = forwardRef((props, ref) => {
           fadeLava();
           setTsunamiData({
             earth,
-            localPosition: worldImpactPoint,
+            localPosition: localImpactPoint,
             earthTextureURL: '/earth-8k.jpg',
             earthRadius: earthRadius,
           });
@@ -175,10 +204,8 @@ const OrbitalView = forwardRef((props, ref) => {
           orbitPathRef.current = null;
         }
       }
-
       renderer.render(scene, camera);
     };
-
     animate();
 
     const handleResize = () => {
@@ -190,7 +217,7 @@ const OrbitalView = forwardRef((props, ref) => {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationFrameId);
+      cancelAnimationFrame(animationFrameIdRef.current);
       if (currentMount && renderer.domElement) currentMount.removeChild(renderer.domElement);
     };
   }, []);
@@ -198,14 +225,7 @@ const OrbitalView = forwardRef((props, ref) => {
   return (
     <>
       <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
-      {tsunamiData && (
-        <WaterHumpsTsunami
-          earth={tsunamiData.earth}
-          localPosition={tsunamiData.localPosition}
-          earthTextureURL={tsunamiData.earthTextureURL}
-          earthRadius={tsunamiData.earthRadius}
-        />
-      )}
+      {tsunamiData && <WaterHumpsTsunami {...tsunamiData} />}
     </>
   );
 });

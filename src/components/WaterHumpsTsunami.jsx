@@ -1,33 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
-function WaterHumpsTsunami({ earth, localPosition, earthTextureURL, earthRadius = 32 }) {
-  const [isWater, setIsWater] = useState(null);
-  const humpsRef = useRef([]);
+function WaterHumpsTsunami({ earth, localPosition, earthTextureURL, earthRadius = 15 }) {
+  // Instead of a boolean, we'll store a number (0 to 1) for the tsunami's strength
+  const [tsunamiStrength, setTsunamiStrength] = useState(0); 
   const animationFrameIdRef = useRef(null);
-  const canvasRef = useRef(null);
-
-  function positionToUV(position) {
-    const p = position.clone().normalize();
-    const u = 0.5 + Math.atan2(p.z, p.x) / (2 * Math.PI);
-    const v = 0.5 - Math.asin(p.y) / Math.PI;
-    return { u, v };
-  }
-
-  function createHump() {
-    const geometry = new THREE.SphereGeometry(0.3, 16, 16);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x3399ff,
-      transparent: true,
-      opacity: 0.7,
-      roughness: 0.1,
-      metalness: 0.3,
-    });
-    const hump = new THREE.Mesh(geometry, material);
-    hump.castShadow = false;
-    hump.receiveShadow = false;
-    return hump;
-  }
 
   useEffect(() => {
     if (!earth || !localPosition || !earthTextureURL) return;
@@ -40,113 +17,121 @@ function WaterHumpsTsunami({ earth, localPosition, earthTextureURL, earthRadius 
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
       canvas.height = img.height;
-      canvasRef.current = canvas;
-
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
 
-      const uv = positionToUV(localPosition);
-      const x = Math.floor(uv.u * (canvas.width - 1));
-      const y = Math.floor(uv.v * (canvas.height - 1));
-      const pixel = ctx.getImageData(x, y, 1, 1).data;
+      // --- NEW: Check 5 points instead of 1 ---
+      const pointsToCheck = [
+        localPosition.clone(), // Center
+        localPosition.clone().add(new THREE.Vector3(1, 0, 0)), // East-ish
+        localPosition.clone().add(new THREE.Vector3(-1, 0, 0)),// West-ish
+        localPosition.clone().add(new THREE.Vector3(0, 1, 0)), // North-ish
+        localPosition.clone().add(new THREE.Vector3(0, -1, 0)),// South-ish
+      ];
 
-      if (pixel[2] > pixel[0] + 10 && pixel[2] > pixel[1] + 10) {
-          console.log("--- 3. Tsunami Check: WATER DETECTED ---"); // <-- ADD THIS
-          setIsWater(true);
-      } else {
-          console.log("--- 3. Tsunami Check: LAND DETECTED ---"); // <-- ADD THIS
-        setIsWater(false);
-      }
-    };
+      let waterPointCount = 0;
+      pointsToCheck.forEach(point => {
+        const p = point.normalize();
+        const u = 0.5 + Math.atan2(p.z, p.x) / (2 * Math.PI);
+        const v = 0.5 - Math.asin(p.y) / Math.PI;
+        const x = Math.floor(u * (canvas.width - 1));
+        const y = Math.floor(v * (canvas.height - 1));
+        const pixel = ctx.getImageData(x, y, 1, 1).data;
 
-    return () => {
-      humpsRef.current.forEach(hump => earth.remove(hump));
-      humpsRef.current = [];
-      setIsWater(null);
-      if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
+        if (pixel[2] > pixel[0] + 10 && pixel[2] > pixel[1] + 10) {
+          waterPointCount++;
+        }
+      });
+      
+      const strength = waterPointCount / pointsToCheck.length;
+      console.log(`Tsunami Strength: ${strength * 100}%`);
+      setTsunamiStrength(strength);
+      // ------------------------------------------
     };
   }, [earth, localPosition, earthTextureURL]);
-
+  
   useEffect(() => {
-    if (!isWater) return;
+    // Only run the animation if the strength is greater than 0
+    if (tsunamiStrength === 0 || !earth) return;
 
-    const humps = [];
-    const numHumpsPerRing = 12;
-    const numRings = 4;
-    const maxRadius = 10;
-    const waveHeight = 1.5;
+    const waveCount = Math.round(3 * tsunamiStrength); // Fewer waves for partial impacts
+    if (waveCount === 0) return; // How many concentric ripples to create
+    const waves = [];
 
-    const earthNormal = localPosition.clone().normalize();
+    for (let i = 0; i < waveCount; i++) {
+      // Create a thin ring geometry
+      const geometry = new THREE.RingGeometry(0.95, 1, 128); 
+      const material = new THREE.MeshBasicMaterial({
+        color: 0x66ccff,
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide,
+      });
+      const wave = new THREE.Mesh(geometry, material);
 
-    for (let ring = 1; ring <= numRings; ring++) {
-      const ringRadius = (maxRadius / numRings) * ring;
-
-      const up = earthNormal;
-      let tangent = new THREE.Vector3(0, 1, 0);
-      if (up.dot(tangent) > 0.99) tangent.set(1, 0, 0);
-      const bitangent = new THREE.Vector3().crossVectors(up, tangent).normalize();
-      tangent = new THREE.Vector3().crossVectors(bitangent, up).normalize();
-
-      for (let i = 0; i < numHumpsPerRing; i++) {
-        const angle = (i / numHumpsPerRing) * 2 * Math.PI;
-        const dir = tangent.clone().multiplyScalar(Math.cos(angle))
-          .add(bitangent.clone().multiplyScalar(Math.sin(angle)))
-          .normalize();
-
-        const posOnSurface = earthNormal.clone().multiplyScalar(earthRadius);
-        const humpPos = posOnSurface.clone().add(dir.clone().multiplyScalar(ringRadius));
-        const humpPosOnSphere = humpPos.clone().normalize().multiplyScalar(earthRadius);
-
-        const hump = createHump();
-        hump.position.copy(humpPosOnSphere);
-        earth.add(hump);
-        humps.push({ mesh: hump, basePos: humpPosOnSphere.clone(), angleOffset: i * 0.5 + ring * 0.5 });
-      }
+      // Position the ring at the impact point, slightly above the surface
+      wave.position.copy(localPosition).setLength(earthRadius + 0.1);
+      // Orient the ring to lie flat against the globe's curvature
+      wave.lookAt(earth.position);
+      
+      earth.add(wave);
+      
+      waves.push({
+        mesh: wave,
+        material: material,
+        delay: i * 500, // Stagger the start time of each wave
+      });
     }
 
-    humpsRef.current = humps;
+    const duration = 5000; // 5 seconds
+    const startTime = performance.now();
 
-    const start = performance.now();
+    function animateWaves() {
+      animationFrameIdRef.current = requestAnimationFrame(animateWaves);
+      const elapsed = performance.now() - startTime;
 
-    function animate(time) {
-      const elapsed = (time - start) / 1000;
+      waves.forEach(wave => {
+        const waveElapsed = elapsed - wave.delay;
+        if (waveElapsed < 0) return;
 
-      humps.forEach(({ mesh, basePos, angleOffset }) => {
-        const verticalOffset = Math.sin(elapsed * 3 + angleOffset) * waveHeight;
-        const outwardDistance = THREE.MathUtils.clamp(elapsed * 2, 0, 10);
-        const moveVec = mesh.position.clone().sub(earth.position).normalize().multiplyScalar(outwardDistance);
+        const t = Math.min(waveElapsed / duration, 1);
+        const easeT = t * t; // Use an ease-in function to start slow and speed up
 
-        mesh.position.copy(basePos).add(moveVec);
-        mesh.position.add(mesh.position.clone().normalize().multiplyScalar(verticalOffset));
-        mesh.material.opacity = THREE.MathUtils.clamp(0.7 - elapsed * 0.15, 0, 0.7);
+        // Expand the ring's scale over time
+        const currentScale = THREE.MathUtils.lerp(1, 20, easeT);
+        wave.mesh.scale.set(currentScale, currentScale, currentScale);
+
+        // Fade out the ring as it expands
+        wave.material.opacity = THREE.MathUtils.lerp(0.8, 0, t);
       });
 
-      if (elapsed < 7) {
-        animationFrameIdRef.current = requestAnimationFrame(animate);
-      } else {
-        humps.forEach(({ mesh }) => {
-          earth.remove(mesh);
-          mesh.geometry.dispose();
-          mesh.material.dispose();
+      // Stop the animation and clean up after it's finished
+      if (elapsed > duration + (waveCount * 500)) {
+        cancelAnimationFrame(animationFrameIdRef.current);
+        waves.forEach(wave => {
+          earth.remove(wave.mesh);
+          wave.mesh.geometry.dispose();
+          wave.material.dispose();
         });
-        humpsRef.current = [];
       }
     }
 
-    animationFrameIdRef.current = requestAnimationFrame(animate);
+    animateWaves();
 
+    // Cleanup function to remove waves if the component is unmounted mid-animation
     return () => {
-      if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
-      humps.forEach(({ mesh }) => {
-        earth.remove(mesh);
-        mesh.geometry.dispose();
-        mesh.material.dispose();
+      cancelAnimationFrame(animationFrameIdRef.current);
+      waves.forEach(wave => {
+        if (wave.mesh.parent) {
+          earth.remove(wave.mesh);
+          wave.mesh.geometry.dispose();
+          wave.material.dispose();
+        }
       });
-      humpsRef.current = [];
     };
-  }, [isWater, earth, localPosition, earthRadius]);
+  }, [tsunamiStrength, earth, localPosition, earthRadius]);
 
-  return null;
+  return null; // This component only creates 3D effects, it doesn't render any HTML.
 }
 
 export default WaterHumpsTsunami;

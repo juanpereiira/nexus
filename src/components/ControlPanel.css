@@ -56,7 +56,7 @@ input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 20px;
   height: 20px;
-  background: #007bff; /* A nice tech blue */
+  background: #ffffff; /* A nice tech blue */
   cursor: pointer;
   border-radius: 50%;
 }
@@ -75,7 +75,7 @@ input[type="range"]::-moz-range-thumb {
   font-size: 1rem;
   font-weight: bold;
   color: white;
-  background-color: #007bff;
+  background-color: #900202;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -84,5 +84,5 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .launch-button:hover {
-  background-color: #0056b3;
+  background-color: #cb2222;
 }

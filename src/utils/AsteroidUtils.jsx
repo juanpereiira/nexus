@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+/* import * as THREE from 'three';
 
 export function createAsteroid(radius) {
   const geometry = new THREE.SphereGeometry(radius, 32, 32);
@@ -29,4 +29,4 @@ export function randomPointOnSphere(radius) {
   const y = radius * Math.sin(phi) * Math.sin(theta);
   const z = radius * Math.cos(phi);
   return new THREE.Vector3(x, y, z);
-}
+} */
