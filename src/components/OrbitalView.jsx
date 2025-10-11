@@ -162,35 +162,13 @@ scene.add(skybox);
           impactStartedRef.current = true;
           const worldImpactPoint = asteroidRef.current.position.clone();
           const localImpactPoint = earthRef.current.worldToLocal(worldImpactPoint);
-          
+
           createBlastCircles(localImpactPoint, earth);
           createCraterOnEarth(earth, localImpactPoint);
           createBlastGlow(localImpactPoint, earth);
-          const lavaTexture = textureLoader.load('/lava.jpg');
-          const decalGeometry = new THREE.CircleGeometry(2, 32);
-          const decalMaterial = new THREE.MeshBasicMaterial({
-            map: lavaTexture,
-            blending: THREE.AdditiveBlending,
-            transparent: true,
-          });
-          const lavaDecal = new THREE.Mesh(decalGeometry, decalMaterial);
-          lavaDecal.position.copy(localImpactPoint).setLength(15.05);
-          lavaDecal.lookAt(new THREE.Vector3(0,0,0));
-          earthRef.current.add(lavaDecal);
-          
-          let opacity = 1.0;
-          function fadeLava() {
-            if (opacity > 0) {
-              opacity -= 0.01;
-              lavaDecal.material.opacity = opacity;
-              requestAnimationFrame(fadeLava);
-            } else {
-              earthRef.current.remove(lavaDecal);
-              lavaDecal.geometry.dispose();
-              lavaDecal.material.dispose();
-            }
-          }
-          fadeLava();
+
+
+          // Remove asteroid and orbit visuals
           setTsunamiData({
             earth,
             localPosition: localImpactPoint,
