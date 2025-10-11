@@ -18,7 +18,7 @@ function ControlPanel({ onSpawn }) {
     };
 
     // --- THIS IS THE REAL API CALL ---
-    fetch('http://localhost:5000/simulate-impact', {
+    fetch('http://astro-impact.onrender.com/simulate-impact', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
