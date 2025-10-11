@@ -32,7 +32,7 @@ function App() {
       const impactLocation = { lat: 9.9312, lon: 76.2673 }; // Kochi, India
 
       // Call the Python backend API.
-      const response = await fetch('http://localhost:5000/simulate-impact', {
+      const response = await fetch('https://astro-impact.onrender.com/simulate-impact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
